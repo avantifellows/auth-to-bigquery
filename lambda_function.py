@@ -1,50 +1,46 @@
 import json
 import os
+import logging
 from google.cloud import bigquery
-from google.oauth2 import service_account
 
 def lambda_handler(event, context):
     messageBody = event["Records"]
 
     for eachMessage in messageBody:
+
+        #extracting the body of the message
         message = json.loads(eachMessage["Sns"]["Message"])[0]
         
         row = {}
         
-        row["DateTime"] = message["DateTime"]
-        row["Purpose_type"] = message["Purpose"]["type"]
-        row["Purpose_subtype"] = message["Purpose"]["subtype"]
-        row["Platform"] = message["Purpose"]["params"]["platform"] 
-        row["Resource_ID"] = message["Purpose"]["params"]["id"] 
-        row["Auth_type"] = message["auth_type"] 
-        row["UserID"] = message["User"]["values"] 
-        row["User_validated"] = message["User"]["userdata_validated"]
+        #the key values are the column names in the BQ table. 
+        row["timestamp"] = message["dateTime"]
+        row["purpose_type"] = message["purpose"]["type"]
+        row["purpose_sub_type"] = message["purpose"]["subType"]
+        row["platform"] = message["purpose"]["params"]["platform"] 
+        row["platform_id"] = message["purpose"]["params"]["id"] 
+        row["auth_type"] = message["authType"] 
+        row["user_id"] = message["user"]["values"] 
+        row["user_data_validated"] = message["user"]["userDataValidated"]
 
-        insert_data(row)
-        
-        return {
-            'statusCode': 200,
-            "body": message,
-        }
+        return insert_data(row)
 
 def insert_data(row):
-    """The main handler function. """
+
     # load env variables
     project_id = os.environ.get('BIGQUERY_PROJECT_ID')
     dataset_id = os.environ.get('BIGQUERY_DATASET_ID')
-    tableId = os.environ.get('TABLE_ID')
+    table_id = os.environ.get('TABLE_ID')
 
     client = bigquery.Client(project=project_id)
-    bigquery_client = client.dataset(dataset_id).table(tableId)
+    table_ref = client.dataset(dataset_id).table(table_id)
+    table = client.get_table(table_ref)
 
     #Inserts data into a table
-    table = client.get_table(bigquery_client)
-    print(row)
-
     errors = client.insert_rows_json(table, [row])
     if errors == []:
-        print("New rows have been added.")
+        logging.info("New rows have been added")
+        return {"statusCode": 200, "body": "All done!"}
     else:
-        print("Encountered errors while inserting rows: {}".format(errors))
-    return {"statusCode": 200, "body": "All done!"}
-
+        logging.error("Encountered errors while inserting rows: {}".format(errors))
+        return {"statusCode": 500, "body": "Error in adding row!"}
