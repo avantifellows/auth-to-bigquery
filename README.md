@@ -2,9 +2,7 @@
 
 - [Installation](#installation)
   - [Pre-requisites](#pre-requisites)
-    - [Docker](#docker)
     - [Pre-commit](#pre-commit)
-  - [Installation steps](#installation-steps)
 
 ### Pre-requisites
 ## Pre-commit
