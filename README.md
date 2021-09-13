@@ -1,4 +1,4 @@
-## Installation
+# Installation
 
 - [Installation](#installation)
   - [Pre-requisites](#pre-requisites)
@@ -6,9 +6,9 @@
     - [Pre-commit](#pre-commit)
   - [Installation steps](#installation-steps)
 
-### Pre-requisites
-## Pre-commit
-Plio utilizes the power of pre-commit to identify simple programming issues at the time of code check-in. This helps the reviewer to focus more on architectural and conceptual issues and reduce the overall time to market.
+## Pre-requisites
+### Pre-commit
+This repo utilizes the power of pre-commit to identify simple programming issues at the time of code check-in. This helps the reviewer to focus more on architectural and conceptual issues and reduce the overall time to market.
 
 The pre-commit configurations are stored in [.pre-commit-config.yaml](../.pre-commit-config.yaml) file.
 
