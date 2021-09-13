@@ -2,9 +2,7 @@
 
 - [Installation](#installation)
   - [Pre-requisites](#pre-requisites)
-    - [Docker](#docker)
     - [Pre-commit](#pre-commit)
-  - [Installation steps](#installation-steps)
 
 ## Pre-requisites
 ### Pre-commit
@@ -14,8 +12,8 @@ The pre-commit configurations are stored in [.pre-commit-config.yaml](../.pre-co
 
 To know about the syntax, visit the [official documentation site](https://pre-commit.com/).
 
-The pre-commit hooks in this repository are 
-    - flake8:  flake8 is a command-line utility for enforcing style consistency across Python projects.
+The pre-commit hooks in this repository are </br>
+    - flake8:  flake8 is a command-line utility for enforcing style consistency across Python projects. </br>
     - autopep8: autopep8 automatically formats Python code to conform to the PEP 8 style guide.
 
 1. Install pre-commit
