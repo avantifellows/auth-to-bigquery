@@ -6,7 +6,7 @@ from google.cloud import bigquery
 
 def lambda_handler(event):
     """
-    Parses messages sent to liveclassAttendanceEventHandler lambda function..
+    Parses messages sent to liveclassAttendanceEventHandler lambda function.
     Each message needs to have the following fields for row to be inserted:
         - dateTime
         - purpose
