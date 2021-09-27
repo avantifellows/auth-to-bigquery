@@ -31,7 +31,7 @@ def lambda_handler(event):
 
             # check if the key values exist in the message sent
             # even if one field is missing,
-            #   the row isn't inserted and an error is displayed
+            #   the row isn't inserted and an error is logged
 
             if all(
                 (k in message for k in ("dateTime", "purpose", "authType", "user"))
