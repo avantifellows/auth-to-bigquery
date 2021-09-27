@@ -89,6 +89,6 @@ def insert_data(row):
 
     else:
         logging.error(
-            "Encountered errors while inserting rows: {}".format(errors))
+            "Encountered errors while inserting row: {}".format(errors))
         logging.error(row)
         return {"statusCode": 500, "body": "Error in adding row!"}
