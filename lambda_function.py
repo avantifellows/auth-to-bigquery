@@ -83,7 +83,7 @@ def insert_data(row):
     errors = client.insert_rows_json(table, [row])
 
     if errors == []:
-        logging.info("New row have been added")
+        logging.info("New row has been added")
         logging.info(row)
         return {"statusCode": 200, "body": "All done!"}
 
