@@ -30,7 +30,7 @@ def lambda_handler(event):
             row = {}
 
             # check if the key values exist in the message sent
-            # if all the fields don't exist,
+            # even if one field is missing,
             #   the row isn't inserted and an error is displayed
 
             if all(
