@@ -27,6 +27,7 @@ def lambda_handler(event):
             # extracting the body of the message
             message = json.loads(eachMessage["Sns"]["Message"])[0]
 
+            # contains all the keys (or fields) and their values to be added into BigQuery.
             row = {}
 
             # check if the key values exist in the message sent
