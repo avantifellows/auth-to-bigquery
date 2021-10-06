@@ -16,7 +16,7 @@ The pre-commit hooks in this repository are </br>
     - flake8:  flake8 is a command-line utility for enforcing style consistency across Python projects. </br>
     - autopep8: autopep8 automatically formats Python code to conform to the PEP 8 style guide.
 
-1. Install pre-commit
+1. Install pre-commit: 
     Use `pip` to install pre-commit
     ```sh
     pip install pre-commit

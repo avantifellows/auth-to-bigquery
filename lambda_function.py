@@ -9,7 +9,7 @@ logger.setLevel(logging.INFO)
 
 def lambda_handler(event, lambda_context):
     """
-    Parses messages sent to liveclassAttendanceEventHandler lambda function..
+    Parses messages sent to liveclassAttendanceEventHandler lambda function.
     Each message needs to have the following fields for row to be inserted:
         - dateTime
         - purpose
@@ -31,11 +31,12 @@ def lambda_handler(event, lambda_context):
             # extracting the body of the message
             message = json.loads(eachMessage["Sns"]["Message"])[0]
 
+            # contains all the keys (or fields) and their values to be added into BigQuery.
             row = {}
 
             # check if the key values exist in the message sent
-            # if all the fields don't exist,
-            #   the row isn't inserted and an error is displayed
+            # even if one field is missing,
+            #   the row isn't inserted and an error is logged
 
             if all(
                 (k in message for k in ("dateTime", "purpose", "authType", "user"))
@@ -85,12 +86,13 @@ def insert_data(row):
     errors = client.insert_rows_json(table, [row])
 
     if errors == []:
-        logger.info("New row have been added")
-        logger.info(row)
+        logging.info("New row has been added")
+        logging.info(row)
         return {"statusCode": 200, "body": "All done!"}
 
     else:
-        logger.info(
-            "Encountered errors while inserting rows: {}".format(errors))
-        logger.info(row)
+        logging.error(
+            "Encountered errors while inserting row: {}".format(errors))
+        logging.error(row)
+
         return {"statusCode": 500, "body": "Error in adding row!"}
