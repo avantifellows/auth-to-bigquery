@@ -27,7 +27,8 @@ def lambda_handler(event):
             # extracting the body of the message
             message = json.loads(eachMessage["Sns"]["Message"])[0]
 
-            # contains all the keys (or fields) and their values to be added into BigQuery.
+            # contains all the keys (or fields)
+            # and their values to be added into BigQuery.
             row = {}
 
             # check if the key values exist in the message sent
@@ -73,7 +74,10 @@ def insert_data(row):
     # load env variables
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     dataset_id = os.environ.get("BIGQUERY_DATASET_ID")
-    table_id = os.environ.get("TABLE_ID")
+    if row["purpose_sub_type"] == "attendance":
+        table_id = os.environ.get("TABLE_ID")
+    elif row["purpose_sub_type"] == "incorrect-entry":
+        table_id = os.environ.get("INCORRECT_ENTRY_TABLE_ID")
 
     client = bigquery.Client(project=project_id)
     table_ref = client.dataset(dataset_id).table(table_id)

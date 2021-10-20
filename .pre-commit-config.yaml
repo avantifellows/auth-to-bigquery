@@ -6,7 +6,3 @@ repos:
       args: # arguments to configure flake8
         # making isort line length compatible with autopep8
         - "--max-line-length=88"
--   repo: https://github.com/pre-commit/mirrors-autopep8
-    rev: 'v1.5.7'
-    hooks:
-    - id: autopep8
