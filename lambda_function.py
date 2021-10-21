@@ -44,6 +44,10 @@ def lambda_handler(event, lambda_context):
                 and (k in message["user"] for k in ("values"))
                 and (k in message["purpose"]["params"] for k in ("platform", "id"))
             ):
+                # sets is_multiple_entry
+                # if the length of user input list has more than 1 userID
+                if len(message["user"]["values"]) > 1:
+                    row["is_multiple_entry"] = True
                 # parsing through each user ID and its respective valid flag
                 for each in message["user"]["values"]:
                     # the key values are the column names in the BQ table.
@@ -63,6 +67,7 @@ def lambda_handler(event, lambda_context):
 
         else:
             logger.info("Encountered missing fields in message: {}".format(eachMessage))
+
 
 def insert_data(row):
     """
