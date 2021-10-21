@@ -47,15 +47,15 @@ def lambda_handler(event, lambda_context):
                 # parsing through each user ID and its respective valid flag
                 for each in message["user"]["values"]:
                     # the key values are the column names in the BQ table.
-                    row["timestamp"] = message["dateTime"]
+                    row["attendance_timestamp"] = message["dateTime"]
                     row["purpose_type"] = message["purpose"]["type"]
-                    row["purpose_sub_type"] = message["purpose"]["subType"]
+                    row["purpose_subtype"] = message["purpose"]["subType"]
                     row["platform"] = message["purpose"]["params"]["platform"]
                     row["platform_id"] = message["purpose"]["params"]["id"]
                     row["auth_type"] = message["authType"]
                     row["user_id"] = each["userID"]
                     row["user_data_validated"] = each["valid"]
-
+                    print(row)
                     return insert_data(row)
 
             else:
@@ -74,9 +74,9 @@ def insert_data(row):
     # load env variables
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     dataset_id = os.environ.get("BIGQUERY_DATASET_ID")
-    if row["purpose_sub_type"] == "attendance":
-        table_id = os.environ.get("TABLE_ID")
-    elif row["purpose_sub_type"] == "incorrect-entry":
+    table_id = os.environ.get("TABLE_ID")
+
+    if row["purpose_subtype"] == "incorrect-entry":
         table_id = os.environ.get("INCORRECT_ENTRY_TABLE_ID")
 
     client = bigquery.Client(project=project_id)
