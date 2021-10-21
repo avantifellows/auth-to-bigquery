@@ -5,4 +5,4 @@ repos:
     - id: flake8
       args: # arguments to configure flake8
         # making isort line length compatible with autopep8
-        - "--max-line-length=88"
+        - "--max-line-length=95"
