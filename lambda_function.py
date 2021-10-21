@@ -3,8 +3,11 @@ import os
 import logging
 from google.cloud import bigquery
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-def lambda_handler(event):
+
+def lambda_handler(event, lambda_context):
     """
     Parses messages sent to liveclassAttendanceEventHandler lambda function.
     Each message needs to have the following fields for row to be inserted:
@@ -18,7 +21,8 @@ def lambda_handler(event):
         - authType
         - user
             - values
-            - userDataValidated
+    When multiple user IDs are entered,
+    each userID and its valid flag is inserted as a seperate row in BigQuery.
     """
     messageBody = event["Records"]
 
@@ -37,31 +41,30 @@ def lambda_handler(event):
             if all(
                 (k in message for k in ("dateTime", "purpose", "authType", "user"))
                 and (k in message["purpose"] for k in ("type", "subType", "params"))
-                and (k in message["user"] for k in ("values", "userDataValidated"))
+                and (k in message["user"] for k in ("values"))
                 and (k in message["purpose"]["params"] for k in ("platform", "id"))
             ):
+                # parsing through each user ID and its respective valid flag
+                for each in message["user"]["values"]:
+                    # the key values are the column names in the BQ table.
+                    row["timestamp"] = message["dateTime"]
+                    row["purpose_type"] = message["purpose"]["type"]
+                    row["purpose_sub_type"] = message["purpose"]["subType"]
+                    row["platform"] = message["purpose"]["params"]["platform"]
+                    row["platform_id"] = message["purpose"]["params"]["id"]
+                    row["auth_type"] = message["authType"]
+                    row["user_id"] = each["userID"]
+                    row["user_data_validated"] = each["valid"]
 
-                # the key values are the column names in the BQ table.
-                row["timestamp"] = message["dateTime"]
-                row["purpose_type"] = message["purpose"]["type"]
-                row["purpose_sub_type"] = message["purpose"]["subType"]
-                row["platform"] = message["purpose"]["params"]["platform"]
-                row["platform_id"] = message["purpose"]["params"]["id"]
-                row["auth_type"] = message["authType"]
-                row["user_id"] = message["user"]["values"]
-                row["user_data_validated"] = message["user"]["userDataValidated"]
-
-                return insert_data(row)
+                    return insert_data(row)
 
             else:
-                logging.error(
-                    "Encountered missing fields in message: {}".format(message)
-                )
+                logger.info(
+                    "Encountered missing fields in message: {}".format(message))
 
         else:
-            logging.error(
-                "Encountered missing fields in message: {}".format(eachMessage)
-            )
+            logger.info(
+                "Encountered missing fields in message: {}".format(eachMessage))
 
 
 def insert_data(row):
@@ -91,4 +94,5 @@ def insert_data(row):
         logging.error(
             "Encountered errors while inserting row: {}".format(errors))
         logging.error(row)
+
         return {"statusCode": 500, "body": "Error in adding row!"}
