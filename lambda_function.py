@@ -64,7 +64,6 @@ def lambda_handler(event, lambda_context):
         else:
             logger.info("Encountered missing fields in message: {}".format(eachMessage))
 
-
 def insert_data(row):
     """
     Function which inserts row into bigquery.
@@ -94,4 +93,5 @@ def insert_data(row):
     else:
         logging.error("Encountered errors while inserting row: {}".format(errors))
         logging.error(row)
+
         return {"statusCode": 500, "body": "Error in adding row!"}
