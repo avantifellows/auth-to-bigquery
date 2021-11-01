@@ -37,19 +37,16 @@ def lambda_handler(event, lambda_context):
             # check if the key values exist in the message sent
             # even if one field is missing,
             #   the row isn't inserted and an error is logged
-
             if all(
                 (k in message for k in ("dateTime", "purpose", "authType", "user"))
                 and (k in message["purpose"] for k in ("type", "subType", "params"))
                 and (k in message["user"] for k in ("values"))
                 and (k in message["purpose"]["params"] for k in ("platform", "id"))
             ):
-                # sets is_multiple_entry
-                # if the length of user input list has more than 1 userID
-                if len(message["user"]["values"]) > 1:
-                    row["is_multiple_entry"] = True
+
                 # parsing through each user ID and its respective valid flag
                 for each in message["user"]["values"]:
+
                     # the key values are the column names in the BQ table.
                     row["attendance_timestamp"] = message["dateTime"]
                     row["purpose_type"] = message["purpose"]["type"]
@@ -59,8 +56,8 @@ def lambda_handler(event, lambda_context):
                     row["auth_type"] = message["authType"]
                     row["user_id"] = each["userID"]
                     row["user_data_validated"] = each["valid"]
-                    print(row)
-                    return insert_data(row)
+
+                    insert_data(row)
 
             else:
                 logger.info("Encountered missing fields in message: {}".format(message))
