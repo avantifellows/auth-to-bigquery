@@ -56,7 +56,7 @@ def lambda_handler(event, lambda_context):
                     row["auth_type"] = message["authType"]
                     row["user_id"] = user_values[i]["userID"]
                     row["user_data_validated"] = user_values[i]["valid"]
-                    row["number_of_multiple_entries"] = user_values_length
+                    row["number_of_multiple_entries"] = len(user_values)
 
                     insert_data(row)
 
