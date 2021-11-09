@@ -45,7 +45,7 @@ def lambda_handler(event, lambda_context):
                 user_values_length = len(user_values)
 
                 # loop through each ID to create a separate row
-                for i in range(user_values_length):
+                for i in range(len(user_values)):
                     row = {}
 
                     row["attendance_timestamp"] = message["dateTime"]
