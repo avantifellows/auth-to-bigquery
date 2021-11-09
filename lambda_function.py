@@ -40,9 +40,8 @@ def lambda_handler(event, lambda_context):
                 and (k in message["purpose"]["params"] for k in ("platform", "id"))
             ):
 
-                # extract all ID's in the array
+                # extract all IDs in the array
                 user_values = message["user"]["values"]
-                user_values_length = len(user_values)
 
                 # loop through each ID to create a separate row
                 for i in range(len(user_values)):
@@ -56,7 +55,7 @@ def lambda_handler(event, lambda_context):
                     row["auth_type"] = message["authType"]
                     row["user_id"] = user_values[i]["userID"]
                     row["user_data_validated"] = user_values[i]["valid"]
-                    row["number_of_multiple_entries"] = len(user_values)
+                    row["number_of_entries"] = len(user_values)
 
                     insert_data(row)
 
