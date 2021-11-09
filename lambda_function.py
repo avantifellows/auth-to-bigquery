@@ -28,11 +28,7 @@ def lambda_handler(event, lambda_context):
 
     for eachMessage in messageBody:
         if "Sns" in eachMessage and "Message" in eachMessage["Sns"]:
-            # extracting the body of the message
             message = json.loads(eachMessage["Sns"]["Message"])[0]
-
-            # contains all the keys (or fields) and their values to be added into BigQuery.
-            row = {}
 
             # check if the key values exist in the message sent
             # even if one field is missing,
@@ -44,18 +40,23 @@ def lambda_handler(event, lambda_context):
                 and (k in message["purpose"]["params"] for k in ("platform", "id"))
             ):
 
-                # parsing through each user ID and its respective valid flag
-                for each in message["user"]["values"]:
+                # extract all ID's in the array
+                user_values = message["user"]["values"]
+                user_values_length = len(user_values)
 
-                    # the key values are the column names in the BQ table.
+                # loop through each ID to create a separate row
+                for i in range(user_values_length):
+                    row = {}
+
                     row["attendance_timestamp"] = message["dateTime"]
                     row["purpose_type"] = message["purpose"]["type"]
                     row["purpose_subtype"] = message["purpose"]["subType"]
                     row["platform"] = message["purpose"]["params"]["platform"]
                     row["platform_id"] = message["purpose"]["params"]["id"]
                     row["auth_type"] = message["authType"]
-                    row["user_id"] = each["userID"]
-                    row["user_data_validated"] = each["valid"]
+                    row["user_id"] = user_values[i]["userID"]
+                    row["user_data_validated"] = user_values[i]["valid"]
+                    row["number_multiple_entries"] = user_values_length
 
                     insert_data(row)
 
@@ -71,12 +72,12 @@ def insert_data(row):
     Function which inserts row into bigquery.
     Project ID, Dataset ID, Table ID ae all stored as .env variables.
     """
-
     # load env variables
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     dataset_id = os.environ.get("BIGQUERY_DATASET_ID")
     table_id = os.environ.get("TABLE_ID")
 
+    # for incorrect entries, store in a different table
     if row["purpose_subtype"] == "incorrect-entry":
         table_id = os.environ.get("INCORRECT_ENTRY_TABLE_ID")
 
@@ -96,4 +97,4 @@ def insert_data(row):
         logging.error("Encountered errors while inserting row: {}".format(errors))
         logging.error(row)
 
-        return {"statusCode": 500, "body": "Error in adding row!"}
+        return {"statusCode": 500, "body": "Error in adding rows!"}
