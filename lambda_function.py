@@ -21,42 +21,49 @@ def lambda_handler(event, lambda_context):
         - authType
         - user
             - values
+        - program
     When multiple user IDs are entered,
-    each userID and its valid flag is inserted as a seperate row in BigQuery.
+    each row is created with a separate user ID's information and added to an array. This array, containing different rows, is added to the table.
     """
     messageBody = event["Records"]
 
     for eachMessage in messageBody:
         if "Sns" in eachMessage and "Message" in eachMessage["Sns"]:
-            # extracting the body of the message
             message = json.loads(eachMessage["Sns"]["Message"])[0]
-
-            # contains all the keys (or fields) and their values to be added into BigQuery.
-            row = {}
 
             # check if the key values exist in the message sent
             # even if one field is missing,
             #   the row isn't inserted and an error is logged
-
             if all(
-                (k in message for k in ("dateTime", "purpose", "authType", "user"))
+                (k in message for k in ("dateTime", "purpose", "authType",
+                 "user", "program", "userType", "sessionId", "userData"))
                 and (k in message["purpose"] for k in ("type", "subType", "params"))
                 and (k in message["user"] for k in ("values"))
                 and (k in message["purpose"]["params"] for k in ("platform", "id"))
+
             ):
-                # parsing through each user ID and its respective valid flag
-                for each in message["user"]["values"]:
-                    # the key values are the column names in the BQ table.
-                    row["timestamp"] = message["dateTime"]
+
+                user_values = message["user"]["values"]
+                user_values_length = len(user_values)
+                print(message)
+                for i in range(user_values_length):
+                    row = {}
+
+                    row["attendance_timestamp"] = message["dateTime"]
                     row["purpose_type"] = message["purpose"]["type"]
-                    row["purpose_sub_type"] = message["purpose"]["subType"]
+                    row["purpose_subtype"] = message["purpose"]["subType"]
                     row["platform"] = message["purpose"]["params"]["platform"]
                     row["platform_id"] = message["purpose"]["params"]["id"]
                     row["auth_type"] = message["authType"]
-                    row["user_id"] = each["userID"]
-                    row["user_data_validated"] = each["valid"]
-
-                    return insert_data(row)
+                    row["user_id"] = user_values[i]["userID"]
+                    row["user_data_validated"] = user_values[i]["valid"]
+                    row["number_multiple_entries"] = user_values_length
+                    row["program"] = message["group"]
+                    row["userType"] = message["userType"]
+                    row["session_id"] = message["sessionId"]
+                    row["user_ip_address"] = message["userNetworkData"]["userIp"]
+                    print(i, row)
+                    insert_data(row)
 
             else:
                 logger.info(
@@ -72,11 +79,13 @@ def insert_data(row):
     Function which inserts row into bigquery.
     Project ID, Dataset ID, Table ID ae all stored as .env variables.
     """
-
     # load env variables
     project_id = os.environ.get("BIGQUERY_PROJECT_ID")
     dataset_id = os.environ.get("BIGQUERY_DATASET_ID")
     table_id = os.environ.get("TABLE_ID")
+
+    if row["purpose_subtype"] == "incorrect-entry":
+        table_id = os.environ.get("INCORRECT_ENTRY_TABLE_ID")
 
     client = bigquery.Client(project=project_id)
     table_ref = client.dataset(dataset_id).table(table_id)
@@ -95,4 +104,4 @@ def insert_data(row):
             "Encountered errors while inserting row: {}".format(errors))
         logging.error(row)
 
-        return {"statusCode": 500, "body": "Error in adding row!"}
+        return {"statusCode": 500, "body": "Error in adding rows!"}
