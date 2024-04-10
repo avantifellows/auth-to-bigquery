@@ -37,7 +37,8 @@ def lambda_handler(event, lambda_context):
             # even if one field is missing,
             #   the row isn't inserted and an error is logged
             if all(
-                (k in message for k in ("date_time", "type", "sub_type", "platform", "platform_id", "auth_type", "user_id", "user_validated", "auth_group", "user_type", "session_id", "user_ip_address","phone_number","batch","date_of_birth"))
+                (k in message for k in ("date_time", "type", "sub_type", "platform", "platform_id", "auth_type", "user_id",
+                 "user_validated", "auth_group", "user_type", "session_id", "user_ip_address", "phone_number", "batch", "date_of_birth"))
             ):
 
                 row = {}
