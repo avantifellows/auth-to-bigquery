@@ -11,19 +11,21 @@ def lambda_handler(event, lambda_context):
     """
     Parses messages sent to liveclassAttendanceEventHandler lambda function.
     Each message needs to have the following fields for row to be inserted:
-        - dateTime
-        - purpose
-            - type
-            - subType
-            - params
-                - platform
-                - id
-        - authType
-        - user
-            - values
-        - program
-    When multiple user IDs are entered,
-    each row is created with a separate user ID's information and added to an array. This array, containing different rows, is added to the table.
+        - date_time
+        - type
+        - sub_type
+        - platform
+        - platform_id
+        - auth_type
+        - user_id
+        - user_validated
+        - auth_group
+        - user_type
+        - session_id
+        - user_ip_address
+        - phone_number
+        - batch
+        - date_of_birth
     """
     messageBody = event["Records"]
 
@@ -35,36 +37,30 @@ def lambda_handler(event, lambda_context):
             # even if one field is missing,
             #   the row isn't inserted and an error is logged
             if all(
-                (k in message for k in ("dateTime", "purpose", "authType",
-                 "user", "program", "userType", "sessionId", "userData"))
-                and (k in message["purpose"] for k in ("type", "subType", "params"))
-                and (k in message["user"] for k in ("values"))
-                and (k in message["purpose"]["params"] for k in ("platform", "id"))
-
+                (k in message for k in ("date_time", "type", "sub_type", "platform", "platform_id", "auth_type", "user_id", "user_validated", "auth_group", "user_type", "session_id", "user_ip_address","phone_number","batch","date_of_birth"))
             ):
 
-                user_values = message["user"]["values"]
-                user_values_length = len(user_values)
-                print(message)
-                for i in range(user_values_length):
-                    row = {}
+                row = {}
 
-                    row["attendance_timestamp"] = message["dateTime"]
-                    row["purpose_type"] = message["purpose"]["type"]
-                    row["purpose_subtype"] = message["purpose"]["subType"]
-                    row["platform"] = message["purpose"]["params"]["platform"]
-                    row["platform_id"] = message["purpose"]["params"]["id"]
-                    row["auth_type"] = message["authType"]
-                    row["user_id"] = user_values[i]["userID"]
-                    row["user_data_validated"] = user_values[i]["valid"]
-                    row["number_multiple_entries"] = user_values_length
-                    row["program"] = message["group"]
-                    row["userType"] = message["userType"]
-                    row["session_id"] = message["sessionId"]
-                    row["user_ip_address"] = message["userNetworkData"]["userIp"]
-                    print(i, row)
-                    insert_data(row)
+                row["attendance_timestamp"] = message["date_time"]
+                row["purpose_type"] = message["type"]
+                row["purpose_subtype"] = message["sub_type"]
+                row["platform"] = message["platform"]
+                row["platform_id"] = message["platform_id"]
+                row["auth_type"] = message["auth_type"]
+                row["user_id"] = message["user_id"]
+                row["user_data_validated"] = message["user_validated"]
+                row["number_of_multiple_entries"] = 1
+                row["userType"] = message["user_type"]
+                row["group"] = message["auth_group"]
+                row["session_id"] = message["session_id"]
+                row["user_ip_address"] = message["user_ip_address"]
+                row["phone_number"] = message["phone_number"]
+                row["batch"] = message["batch"]
+                row["date_of_birth"] = message["date_of_birth"]
 
+                print(row)
+                insert_data(row)
             else:
                 logger.info(
                     "Encountered missing fields in message: {}".format(message))
