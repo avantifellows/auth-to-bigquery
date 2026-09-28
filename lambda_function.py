@@ -1,104 +1,118 @@
+"""Portal attendance events: SQS queue -> BigQuery.
+
+portal-backend puts one message per login or launch on the queue; each becomes a
+row in auth_logs.attendance-logs. Messages that fail to insert are reported back
+to SQS so only those are retried; the SQS message id doubles as the BigQuery
+insert id, so a retry cannot create a duplicate row.
+"""
 import json
-import os
 import logging
-from google.cloud import bigquery
+import os
+from datetime import datetime, timezone
+
+import boto3
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+ACCEPTED_TYPES = {
+    "attendance",
+    "attendance-on-sign-up",
+    "broadcast",
+    "popup_form",
+    "sign-in",
+    "sign-up",
+}
 
-def lambda_handler(event, lambda_context):
-    """
-    Parses messages sent to liveclassAttendanceEventHandler lambda function.
-    Each message needs to have the following fields for row to be inserted:
-        - date_time
-        - type
-        - sub_type
-        - platform
-        - platform_id
-        - auth_type
-        - user_id
-        - user_validated
-        - auth_group
-        - user_type
-        - session_id
-        - user_ip_address
-        - phone_number
-        - batch
-        - date_of_birth
-    """
-    messageBody = event["Records"]
+# message field -> column
+COLUMNS = {
+    "type": "purpose_type",
+    "sub_type": "purpose_subtype",
+    "platform": "platform",
+    "platform_id": "platform_id",
+    "auth_type": "auth_type",
+    "user_id": "user_id",
+    "user_validated": "user_data_validated",
+    "user_type": "userType",
+    "auth_group": "group",
+    "session_id": "session_id",
+    "user_ip_address": "user_ip_address",
+    "phone_number": "phone_number",
+    "batch": "batch",
+    "date_of_birth": "date_of_birth",
+}
 
-    for eachMessage in messageBody:
-        if "Sns" in eachMessage and "Message" in eachMessage["Sns"]:
-            message = json.loads(eachMessage["Sns"]["Message"])[0]
-
-            # check if the key values exist in the message sent
-            # even if one field is missing,
-            #   the row isn't inserted and an error is logged
-            if all(
-                (k in message for k in ("date_time", "type", "sub_type", "platform", "platform_id", "auth_type", "user_id",
-                 "user_validated", "auth_group", "user_type", "session_id", "user_ip_address", "phone_number", "batch", "date_of_birth"))
-            ):
-
-                row = {}
-
-                row["attendance_timestamp"] = message["date_time"]
-                row["purpose_type"] = message["type"]
-                row["purpose_subtype"] = message["sub_type"]
-                row["platform"] = message["platform"]
-                row["platform_id"] = message["platform_id"]
-                row["auth_type"] = message["auth_type"]
-                row["user_id"] = message["user_id"]
-                row["user_data_validated"] = message["user_validated"]
-                row["number_of_multiple_entries"] = 1
-                row["userType"] = message["user_type"]
-                row["group"] = message["auth_group"]
-                row["session_id"] = message["session_id"]
-                row["user_ip_address"] = message["user_ip_address"]
-                row["phone_number"] = message["phone_number"]
-                row["batch"] = message["batch"]
-                row["date_of_birth"] = message["date_of_birth"]
-
-                print(row)
-                insert_data(row)
-            else:
-                logger.info(
-                    "Encountered missing fields in message: {}".format(message))
-
-        else:
-            logger.info(
-                "Encountered missing fields in message: {}".format(eachMessage))
+_client = None
 
 
-def insert_data(row):
-    """
-    Function which inserts row into bigquery.
-    Project ID, Dataset ID, Table ID ae all stored as .env variables.
-    """
-    # load env variables
-    project_id = os.environ.get("BIGQUERY_PROJECT_ID")
-    dataset_id = os.environ.get("BIGQUERY_DATASET_ID")
-    table_id = os.environ.get("TABLE_ID")
+def bigquery_client():
+    global _client
+    if _client is None:
+        from google.cloud import bigquery
+        from google.oauth2 import service_account
 
-    if row["purpose_subtype"] == "incorrect-entry":
-        table_id = os.environ.get("INCORRECT_ENTRY_TABLE_ID")
+        secret = boto3.client("secretsmanager").get_secret_value(
+            SecretId=os.environ["GCP_CREDENTIALS_SECRET"]
+        )
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(secret["SecretString"])
+        )
+        _client = bigquery.Client(
+            project=os.environ["BIGQUERY_PROJECT_ID"], credentials=credentials
+        )
+    return _client
 
-    client = bigquery.Client(project=project_id)
-    table_ref = client.dataset(dataset_id).table(table_id)
-    table = client.get_table(table_ref)
 
-    # Inserts data into a table
-    errors = client.insert_rows_json(table, [row])
+def to_row(record):
+    """The BigQuery row for one SQS record, or None if the message is unusable."""
+    try:
+        body = json.loads(record["body"])
+    except ValueError:
+        return None
+    message = body[0] if isinstance(body, list) and body else body
+    if not isinstance(message, dict) or message.get("type") not in ACCEPTED_TYPES:
+        return None
 
-    if errors == []:
-        logging.info("New row has been added")
-        logging.info(row)
-        return {"statusCode": 200, "body": "All done!"}
+    sent_ms = int(record["attributes"]["SentTimestamp"])
+    row = {
+        column: message.get(field, "") for field, column in COLUMNS.items()
+    }
+    row["user_data_validated"] = bool(message.get("user_validated", True))
+    row["attendance_timestamp"] = datetime.fromtimestamp(
+        sent_ms / 1000, timezone.utc
+    ).isoformat()
+    row["number_of_multiple_entries"] = "1"
+    return row
 
-    else:
-        logging.error(
-            "Encountered errors while inserting row: {}".format(errors))
-        logging.error(row)
 
-        return {"statusCode": 500, "body": "Error in adding rows!"}
+def lambda_handler(event, context):
+    ids, rows = [], []
+    for record in event.get("Records", []):
+        row = to_row(record)
+        if row is None:
+            # Retrying cannot fix a malformed or unknown message, so drop it.
+            logger.warning("Skipping message %s: %s", record.get("messageId"),
+                           record.get("body"))
+            continue
+        ids.append(record["messageId"])
+        rows.append(row)
+
+    failed = []
+    if rows:
+        table = "{}.{}.{}".format(
+            os.environ["BIGQUERY_PROJECT_ID"],
+            os.environ["BIGQUERY_DATASET_ID"],
+            os.environ["TABLE_ID"],
+        )
+        try:
+            errors = bigquery_client().insert_rows_json(table, rows, row_ids=ids)
+            failed = [ids[error["index"]] for error in errors]
+            if errors:
+                logger.error("Insert errors: %s", errors)
+        except Exception:
+            logger.exception("Insert failed for %d rows", len(rows))
+            failed = ids
+
+    logger.info("Inserted %d of %d messages", len(rows) - len(failed),
+                len(event.get("Records", [])))
+    return {"batchItemFailures": [{"itemIdentifier": i} for i in failed]}
